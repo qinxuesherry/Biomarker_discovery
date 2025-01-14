@@ -1,0 +1,160 @@
+---
+title: "Logistic_Regression"
+author: "Xue Qin"
+date: "2024-10-17"
+output: html_document
+---
+
+```{r}
+library(cutpointr)
+library(caret)
+```
+
+```{r}
+data <- read.csv("../data/output/roc_cutoff.csv")
+head(data)
+```
+```{r}
+library(dplyr)
+
+data <- data %>%
+  group_by(id) %>%
+  filter(t == max(t)) %>%
+  ungroup()
+
+```
+
+```{r}
+set.seed(133)
+
+
+train_index <- createDataPartition(data$d, p = 0.7, list = FALSE)
+
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+```
+
+# fpsa+tpsa
+```{r}
+
+logistic_model_continuous <- glm(d ~ fpsa + tpsa, data = train_data, family = binomial)
+summary(logistic_model_continuous)
+
+```
+```{r}
+
+test_data$predicted_prob_continuous <- predict(logistic_model_continuous, newdata = test_data,type = "response")
+
+```
+
+```{r}
+library(pROC)
+
+# Calculate and plot ROC curve
+roc_curve_continuous <- roc(test_data$d, test_data$predicted_prob_continuous)
+plot(roc_curve_continuous, main = "ROC Curve for Logistic Regression with Continuous Predictors",legacy.axes = TRUE)
+auc_value_continuous <- auc(roc_curve_continuous)
+print(paste("AUC:", auc_value_continuous))
+```
+
+
+
+```{r}
+## Find optimal cutoff with youden Index 0.43
+youden_index <- roc_curve_continuous$sensitivities + roc_curve_continuous$specificities - 1
+optimal_cutoff <- roc_curve_continuous$thresholds[which.max(youden_index)]
+cat("Optimal Cutoff for the Model: ", optimal_cutoff, "\n")
+```
+
+```{r}
+
+test_data$predicted_class_continuous <- ifelse(test_data$predicted_prob_continuous >= 0.4379, 1, 0)
+```
+
+
+```{r}
+table(Predicted = test_data$predicted_class_continuous, Actual = test_data$d)
+accuracy_continuous <- mean(test_data$predicted_class_continuous == test_data$d)
+print(paste("Accuracy:", accuracy_continuous))
+```
+
+
+```{r}
+# Confusion matrix
+conf_matrix <- confusionMatrix(as.factor(test_data$predicted_class_continuous), as.factor(test_data$d))
+
+sensitivity_value <- conf_matrix$byClass["Sensitivity"]
+specificity_value <- conf_matrix$byClass["Specificity"]
+
+print(paste("Sensitivity:", sensitivity_value))
+print(paste("Specificity:", specificity_value))
+```
+
+```{r}
+library(ggplot2)
+
+# Create confusion matrix as a table
+confusion_table <- table(Predicted = test_data$predicted_class_continuous, Actual = test_data$d)
+
+# Convert the table to a data frame for ggplot2
+confusion_df <- as.data.frame(confusion_table)
+
+ggplot(confusion_df, aes(x = Actual, y = Predicted)) +
+  geom_tile(aes(fill = Freq), color = "white") +        
+  scale_fill_gradient(low = "lightblue", high = "blue") +  
+  geom_text(aes(label = Freq), color = "white", size = 6) +
+  labs(title = "Logistic Regression Confusion Matrix Heatmap", x = "Actual", y = "Predicted") +
+  theme_minimal() +                                   
+  theme(axis.text = element_text(size = 12),      
+        plot.title = element_text(hjust = 0.5, size = 16)) 
+
+```
+
+```{r}
+roc_curve_continuous3 <- roc(test_data$d, test_data$predicted_class_continuous)
+plot(roc_curve_continuous3, main = "ROC Curve for Logistic Regression with Continuous Predictors",legacy.axes = TRUE)
+auc_value_continuous3 <- auc(roc_curve_continuous3)
+print(paste("AUC:", auc_value_continuous3))
+```
+
+
+
+# fpsa+tpsa+age
+```{r}
+# Fit logistic regression model with train data
+logistic_model_continuous2 <- glm(d ~ fpsa + tpsa +age, data = train_data, family = binomial)
+summary(logistic_model_continuous2)
+
+```
+```{r}
+# Predict probabilities on the original data
+test_data$predicted_prob_continuous2 <- predict(logistic_model_continuous2, newdata = test_data,type = "response")
+
+# Convert probabilities to binary predictions with a 0.5 threshold
+test_data$predicted_class_continuous2 <- ifelse(test_data$predicted_prob_continuous2 >= 0.45508, 1, 0)
+
+```
+
+```{r}
+table(Predicted = test_data$predicted_class_continuous2, Actual = test_data$d)
+accuracy_continuous2 <- mean(test_data$predicted_class_continuous2 == test_data$d)
+print(paste("Accuracy:", accuracy_continuous2))
+```
+
+
+```{r}
+library(pROC)
+
+# Calculate and plot ROC curve
+roc_curve_continuous2 <- roc(test_data$d, test_data$predicted_prob_continuous2)
+plot(roc_curve_continuous2, main = "ROC Curve for Logistic Regression with Continuous Predictors")
+auc_value_continuous2 <- auc(roc_curve_continuous2)
+print(paste("AUC:", auc_value_continuous2))
+```
+```{r}
+youden_index2 <- roc_curve_continuous2$sensitivities + roc_curve_continuous2$specificities - 1
+optimal_cutoff2 <- roc_curve_continuous2$thresholds[which.max(youden_index2)]
+cat("Optimal Cutoff for the Model: ", optimal_cutoff2, "\n")
+```
+

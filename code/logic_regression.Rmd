@@ -1,0 +1,210 @@
+---
+title: "logic_regression"
+author: "Xue Qin"
+date: "2024-10-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data_roc <- read.csv("../data/output/roc_cutoff.csv")
+data_youden <- read.csv("../data/output/youden_cutoff.csv")
+```
+
+```{r}
+library(LogicReg)
+```
+
+# Fpsa+tpsa+age
+
+## Roc + Logic Regression
+```{r}
+y_roc <- data_roc$d
+x_roc <- data_roc[, c("fpsa_cut", "tpsa_cut", "age_cut")]
+
+# Fit the logic regression model
+logic_model_roc <- logreg(resp = y_roc, bin = as.matrix(x_roc), type = 1,select = 1)
+print(logic_model_roc)
+```
+
+```{r}
+# Display the summary
+summary(logic_model_roc)
+
+# Plot the logic tree
+plot(logic_model_roc)
+```
+
+
+```{r}
+# Predict on the original data
+predictions_roc <- predict(logic_model_roc, newbin = as.matrix(x_roc))
+table(predictions_roc, y_roc)
+
+accuracy_roc <- mean(predictions_roc == y_roc)
+print(paste("Accuracy:", accuracy_roc))
+
+```
+
+## Youden Index + Logic Regression
+
+```{r}
+y_youden <- data_youden$d
+x_youden <- data_youden[, c("fpsa_cut", "tpsa_cut", "age_cut")]
+
+# Fit the logic regression model
+logic_model_youden <- logreg(resp = y_youden, bin = as.matrix(x_youden), type = 1,select = 1)
+print(logic_model_youden)
+```
+
+```{r}
+# Display the summary
+summary(logic_model_youden)
+
+# Plot the logic tree
+plot(logic_model_youden)
+```
+
+```{r}
+# Predict on the original data
+predictions_youden <- predict(logic_model_youden, newbin = as.matrix(x_youden))
+table(predictions_youden, y_youden)
+
+accuracy_youden <- mean(predictions_youden == y_youden)
+print(paste("Accuracy_youden:", accuracy_youden))
+
+```
+
+# Fpsa+tpsa
+## Roc + Logic Regression
+```{r}
+data_roc$fpsa_cut <- as.numeric(data_roc$fpsa_cut)
+data_roc$tpsa_cut <- as.numeric(data_roc$tpsa_cut)
+data_roc$d <- as.numeric(data_roc$d)
+
+```
+
+```{r}
+data_roc
+```
+
+```{r}
+y_roc2 <- data_roc$d
+x_roc2 <- data_roc[, c("fpsa_cut", "tpsa_cut")]
+
+# Fit the logic regression model
+logic_model_roc2 <- logreg(
+  resp = y_roc2, 
+  bin = as.matrix(x_roc2), 
+  type = 1, 
+  select = 2,nleaves=2)
+print(logic_model_roc2)
+```
+
+
+```{r}
+# Display the summary
+summary(logic_model_roc2)
+
+# Plot the logic tree
+plot(logic_model_roc2)
+```
+
+
+```{r}
+# Predict on the original data
+predictions_roc2 <- predict(logic_model_roc2, newbin = as.matrix(x_roc2))
+#table(predictions_roc2, y_roc2)
+
+accuracy_roc2 <- mean(predictions_roc2 == y_roc2)
+print(paste("Accuracy:", accuracy_roc2))
+
+```
+
+### training/test
+```{r}
+# Assuming data_roc is the original dataset
+library(caret)
+# Set a seed for reproducibility
+set.seed(123)
+
+# Split the data into 70% training and 30% testing
+train_index <- createDataPartition(data_roc$d, p = 0.7, list = FALSE)
+
+train_data <- data_roc[train_index, ]
+test_data <- data_roc[-train_index, ]
+
+```
+
+```{r}
+# Prepare response and predictors for the training set
+y_train <- train_data$d
+x_train <- train_data[, c("fpsa_cut", "tpsa_cut")]
+
+# Fit the logic regression model on the training data
+logic_model_train <- logreg(
+  resp = y_train, 
+  bin = as.matrix(x_train), 
+  type = 1,  # Single-tree logic regression
+select = 2,nleaves=2
+)
+
+# Print the model summary
+summary(logic_model_train)
+
+```
+```{r}
+# Prepare predictors for the testing set
+x_test <- test_data[, c("fpsa_cut", "tpsa_cut")]
+
+# Make predictions on the testing set
+predicted_values <- predict(logic_model_train, newbin = as.matrix(x_test))
+
+# Convert predicted values to binary (1 or 0) based on the logic tree
+predicted_classes <- ifelse(predicted_values > 0.5, 1, 0)
+
+# Create a confusion matrix to evaluate performance
+confusion_matrix <- table(Predicted = predicted_classes, Actual = test_data$d)
+
+# Print the confusion matrix
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == test_data$d)
+print(paste("Accuracy on Test Set:", accuracy))
+
+```
+
+## Youden Index + Logic Regression
+
+```{r}
+y_youden2 <- data_youden$d
+x_youden2 <- data_youden[, c("fpsa", "tpsa")]
+
+# Fit the logic regression model
+logic_model_youden2 <- logreg(resp = y_youden2, bin = as.matrix(x_youden2), type = 1,select = 2,nleaves=2)
+print(logic_model_youden2)
+```
+
+```{r}
+# Display the summary
+summary(logic_model_youden2)
+
+# Plot the logic tree
+plot(logic_model_youden2)
+```
+
+```{r}
+# Predict on the original data
+predictions_youden2 <- predict(logic_model_youden2, newbin = as.matrix(x_youden2))
+
+accuracy_youden2 <- mean(predictions_youden2 == y_youden2)
+print(paste("Accuracy_youden:", accuracy_youden2))
+
+```
+```{r}
+predictions_youden2
+```

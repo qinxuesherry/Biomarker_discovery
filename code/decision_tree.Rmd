@@ -1,0 +1,133 @@
+---
+title: "decision_tree"
+author: "Xue Qin"
+date: "2024-10-18"
+output: html_document
+---
+
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(caret)
+```
+
+```{r}
+data <- read.csv("../data/raw/psa2b.csv")
+
+library(dplyr)
+
+data <- data %>%
+  group_by(id) %>%
+  filter(t == max(t)) %>%
+  ungroup()
+```
+
+
+```{r}
+set.seed(1333)
+
+# Split data: 70% for training, 30% for testing
+train_index <- createDataPartition(data$d, p = 0.7, list = FALSE)
+
+train_data <- data[train_index, ]
+test_data<- data[-train_index, ]
+
+```
+
+#decision tree with continuous varibale
+```{r}
+# Fit the decision tree model
+tree_model <- rpart(d ~ fpsa + tpsa, data = train_data, method = "class", control = rpart.control(minsplit = 10, cp = 0.01, maxdepth = 4))
+
+summary(tree_model)
+```
+
+```{r}
+# Plot the decision tree
+rpart.plot(tree_model, main = "Decision Tree Model", type = 2, extra = 104)
+```
+
+```{r}
+# Predict the classes for the test set
+predicted_classes <- predict(tree_model, newdata = test_data, type = "class")
+test_data$predicted_prob <- predict(tree_model, newdata = test_data,type = "prob")[, 2]
+
+confusion_matrix <- table(Predicted = predicted_classes, Actual = test_data$d)
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == test_data$d)
+print(paste("Accuracy on Test Set:", accuracy))
+
+```
+```{r}
+confusion_df <- as.data.frame(confusion_matrix)
+
+# Plot the confusion matrix heatmap
+ggplot(confusion_df, aes(x = Actual, y = Predicted)) +
+  geom_tile(aes(fill = Freq), color = "white") +        # Create heatmap tiles
+  scale_fill_gradient(low = "lightblue", high = "blue") +  # Gradient color
+  geom_text(aes(label = Freq), color = "white", size = 6) + # Add frequency text in tiles
+  labs(title = "Decision Tree Confusion Matrix Heatmap", x = "Actual", y = "Predicted") +
+  theme_minimal() +                                    # Minimal theme for a clean look
+  theme(axis.text = element_text(size = 12),           # Adjust axis text size
+        plot.title = element_text(hjust = 0.5, size = 16)) # Center and size title
+```
+
+
+```{r}
+library(pROC)
+
+roc_curve <- roc(test_data$d, test_data$predicted_prob)
+
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve for Decision Tree Model", col = "black", lwd = 2, legacy.axes = TRUE)
+
+auc_value <- auc(roc_curve)
+print(paste("AUC:", auc_value))
+```
+
+
+
+## Continuous with age
+#decision tree with continuous varibale
+```{r}
+# Fit the decision tree model
+tree_model3 <- rpart(d ~ fpsa + tpsa+age, data = train_data, method = "class",control = rpart.control(minsplit = 10, cp = 0.01, maxdepth = 5))
+
+summary(tree_model3)
+```
+
+```{r}
+# Plot the decision tree
+rpart.plot(tree_model3, main = "Decision Tree for Binary Classification", type = 2, extra = 104)
+```
+
+```{r}
+# Predict the classes for the test set
+predicted_classes3 <- predict(tree_model3, newdata = test_data, type = "class")
+
+
+confusion_matrix3 <- table(Predicted = predicted_classes3, Actual = test_data$d)
+print(confusion_matrix3)
+
+# Calculate accuracy
+accuracy3 <- mean(predicted_classes3 == test_data$d)
+print(paste("Accuracy on Test Set:", accuracy3))
+
+```
+
+```{r}
+confusion_df3 <- as.data.frame(confusion_matrix3)
+
+# Plot the confusion matrix heatmap
+ggplot(confusion_df3, aes(x = Actual, y = Predicted)) +
+  geom_tile(aes(fill = Freq), color = "white") +        # Create heatmap tiles
+  scale_fill_gradient(low = "lightblue", high = "blue") +  # Gradient color
+  geom_text(aes(label = Freq), color = "white", size = 6) + # Add frequency text in tiles
+  labs(title = "Decision Tree Confusion Matrix Heatmap", x = "Actual", y = "Predicted") +
+  theme_minimal() +                                    # Minimal theme for a clean look
+  theme(axis.text = element_text(size = 12),           # Adjust axis text size
+        plot.title = element_text(hjust = 0.5, size = 16)) # Center and size title
+```

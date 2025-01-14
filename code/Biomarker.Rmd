@@ -1,0 +1,99 @@
+---
+title: "Roc_Youden Index"
+author: "Xue Qin"
+date: "2024-09-13"
+output: html_document
+---
+
+```{r}
+library(cutpointr)
+```
+
+```{r}
+data <- read.csv("../data/raw/psa2b.csv")
+data_2<- data
+```
+
+
+# Individual Biomarker
+## Free PSA 
+```{r}
+# Optimal cut-off for free PSA using Youden Index
+result_fpsa <- cutpointr(data = data, x = fpsa, class = d, 
+                         method = maximize_metric, metric = youden)
+print(result_fpsa)
+
+# plot for youden
+plot(result_fpsa)
+```
+
+
+
+
+```{r}
+# Point closest to (0,1) for free PSA
+result_fpsa_roc <- cutpointr(data = data, x = fpsa, class = d, 
+                             method = minimize_metric, metric = roc01)
+print(result_fpsa_roc)
+
+### plot for roc
+plot(result_fpsa_roc)
+```
+
+
+
+## total PSA
+```{r}
+# Optimal cut-off for total PSA using Youden Index
+result_tpsa <- cutpointr(data =data, x = tpsa, class = d, 
+                         method = maximize_metric, metric = youden)
+print(result_tpsa)
+
+# plot younden Index plot for tpsa
+plot(result_tpsa)
+```
+
+```{r}
+# Point closest to (0,1) for total PSA
+result_tpsa_roc <- cutpointr(data = data, x = tpsa, class = d, 
+                             method = minimize_metric, metric = roc01)
+print(result_tpsa_roc)
+
+# plot roc plot for tpsa
+plot(result_tpsa_roc)
+```
+
+
+## Combine Results
+```{r}
+library(dplyr)
+combined_results_youden <- bind_rows(
+  result_fpsa %>% mutate(variable = "fpsa"),
+  result_tpsa %>% mutate(variable = "tpsa"),
+)
+
+final_results_youden <- combined_results_youden %>%
+  select(predictor, method, optimal_cutpoint, youden, acc, sensitivity, specificity, AUC)%>%
+  rename(accuracy = acc)
+
+print(final_results_youden)
+write.csv(final_results_youden, "../data/output/youden_results.csv", row.names = FALSE)
+```
+
+```{r}
+library(dplyr)
+combined_results_roc <- bind_rows(
+  result_fpsa_roc %>% mutate(variable = "fpsa"),
+  result_tpsa_roc %>% mutate(variable = "tpsa"),
+)
+
+final_results_roc <- combined_results_roc %>%
+  select(predictor, method, optimal_cutpoint, roc01, acc, sensitivity, specificity, AUC)%>%
+  rename(accuracy = acc)
+
+print(final_results_roc)
+write.csv(final_results_roc, "../data/output/roc01_results.csv", row.names = FALSE)
+```
+
+
+
